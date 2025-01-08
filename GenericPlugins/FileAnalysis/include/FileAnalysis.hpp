@@ -6,6 +6,7 @@
 #include <array>
 #include <map>
 #include <curl/curl.h>
+#include <nlohmann/json.hpp>
 
 namespace GView::GenericPlugins::FileAnalysis
 {
