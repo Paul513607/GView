@@ -199,7 +199,7 @@ if(NOT DEFINED CMAKE_TESTING_ENABLED)
     add_subdirectory(Types/JCLASS)
     add_subdirectory(Types/EML)
     add_subdirectory(Types/DOC)
-	  add_subdirectory(Types/JPG)
+	add_subdirectory(Types/JPG)
 
     # Generic plugins supported by GView
     add_subdirectory(GenericPlugins/CharacterTable)
@@ -208,6 +208,7 @@ if(NOT DEFINED CMAKE_TESTING_ENABLED)
     add_subdirectory(GenericPlugins/EntropyVisualizer)
     add_subdirectory(GenericPlugins/Dropper)
     add_subdirectory(GenericPlugins/Unpacker)
+    add_subdirectory(GenericPlugins/FileAnalysis)
                                                                     
     if (APPLE)
             set_property(TARGET "${PROJECT_NAME}" PROPERTY INSTALL_RPATH "@loader_path")
