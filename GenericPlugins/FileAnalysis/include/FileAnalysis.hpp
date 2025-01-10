@@ -6,7 +6,9 @@
 #include <array>
 #include <map>
 #include <curl/curl.h>
-#include <nlohmann/json.hpp>
+// #include <nlohmann/json.hpp>
+
+#undef MessageBox
 
 namespace GView::GenericPlugins::FileAnalysis
 {
@@ -18,28 +20,16 @@ using namespace GView::Utils;
 using namespace GView::View;
 using namespace GView::Hashes;
 
-class VirusTotalUploader
-{
-  public:
-    static bool UploadFile(const std::string& filePath, const std::string& apiKey, std::string& response);
-
-  private:
-    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* outputBuffer);
+enum class Hashes : uint32 {
+    None   = 0,
+    MD5    = 1,
+    SHA1   = 2,
+    SHA256 = 3,
 };
 
-class VirusTotalReport
-{
-  public:
-    static bool GetFileReport(const std::string& fileHash, const std::string& apiKey, std::string& response);
-
-  private:
-    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* outputBuffer);
-};
-
-class FileHasher
-{
-  public:
-    static bool ComputeHashes(const std::string& filePath, std::map<std::string, std::string>& hashResults, const std::vector<std::string>& hashTypes);
-};
+// Function declarations
+bool UploadFile(Reference<GView::Object> object, std::string& response);
+bool GetFileReport(Reference<GView::Object> object, std::string& response);
+std::string ComputeHash(Reference<GView::Object> object, Hashes hash_type);
 
 } // namespace GView::GenericPlugins::FileAnalysis
