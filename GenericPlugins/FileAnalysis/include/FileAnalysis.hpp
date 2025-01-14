@@ -5,10 +5,9 @@
 #include <any>
 #include <array>
 #include <map>
-#include <curl/curl.h>
-// #include <nlohmann/json.hpp>
-
-#undef MessageBox
+#include <nlohmann/json.hpp>
+#include <cstdlib>
+#include <codecvt>
 
 namespace GView::GenericPlugins::FileAnalysis
 {

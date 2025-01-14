@@ -19,10 +19,6 @@
       "platform": "windows | linux | osx"
     },
     {
-      "name": "curl",
-      "platform": "windows | linux | osx"
-    },
-    {
       "name": "freetype",
       "platform": "windows | linux | osx"
     },
