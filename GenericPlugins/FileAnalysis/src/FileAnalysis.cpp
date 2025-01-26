@@ -259,10 +259,9 @@ PLUGIN_EXPORT bool Run(const string_view command, Reference<GView::Object> objec
             std::string fileReport = ExtractFileAnalysisReport(json);
             AppCUI::OS::Clipboard::SetText(fileReport);
             Dialogs::MessageBox::ShowNotification("Report Retrieved", "File report copied to clipboard.");
-            //Window resultWindow("Results", "d:c,w:70,h20", WindowFlags::Sizeable | WindowFlags::Maximized);
+
             GView::GenericPlugins::FileAnalysis::TextWindow window("Analysis results", fileReport);
             window.Show();
-            //Dialogs::MessageBox::ShowNotification("Results:", fileReport);
         } else {
             Dialogs::MessageBox::ShowNotification("Report Retrieved", "File report fetched successfully from VirusTotal.");
         }
