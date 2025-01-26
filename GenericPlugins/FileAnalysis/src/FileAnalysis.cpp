@@ -14,7 +14,24 @@
 
 namespace GView::GenericPlugins::FileAnalysis
 {
-static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* outputBuffer)
+
+    class TextWindow : public Window, public Handlers::OnButtonPressedInterface
+    {
+
+    public:
+        TextWindow(std::string textAreaCaption, std::string textAreaContent)
+            : Window(textAreaCaption, "d:c,w:70,h:25", WindowFlags::Sizeable | WindowFlags::Maximized)
+        {
+            Factory::TextArea::Create(this, textAreaContent, "l:1,t:1,r:1,b:3", TextAreaFlags::Readonly | TextAreaFlags::ScrollBars | TextAreaFlags::ShowLineNumbers);
+            Factory::Button::Create(this, "&Close", "d:b,w:20", 1)->Handlers()->OnButtonPressed = this;
+        }
+
+        void OnButtonPressed(Reference<Button>) override
+        {
+            this->Exit();
+        }
+    };
+    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* outputBuffer)
 {
     size_t totalSize = size * nmemb;
     if (outputBuffer) {
@@ -182,6 +199,36 @@ static std::string ComputeHash(Reference<GView::Object> object, bool& hashComput
 
 extern "C"
 {
+static std::string ExtractFileAnalysisReport(nlohmann::json fileAnalysisResults)
+{
+    std::stringstream report;
+    nlohmann::json attributes = fileAnalysisResults["data"]["attributes"];
+    report << "File name: " << attributes["meaningful_name"] << '\n';
+    report << "Size in bytes: " << attributes["size"] << '\n';
+    report << "File type: " << attributes["type_description"] << '\n';
+    report << "MD5: " << attributes["md5"] << '\n';
+    report << "SHA1: " << attributes["sha1"] << '\n';
+    report << "SHA256: " << attributes["sha256"] << '\n';
+    report << "Last submission date: " << attributes["last_submission_date"] << '\n';
+    report << "Last analysis date: " << attributes["last_analysis_date"] << '\n';
+    report << "Times submitted: " << attributes["times_submitted"] << '\n';
+    report << "Unique sources: " << attributes["unique_sources"] << '\n';
+    report << "Self link: " << fileAnalysisResults["data"]["links"]["self"] << '\n' << '\n';
+
+    nlohmann::json lastAnalisysStats = attributes["last_analysis_stats"];
+    report << "Last analysis stats:" << '\n';
+    report << '\t' << "Confirmed timeout: " << lastAnalisysStats["confirmed-timeout"] << '\n';
+    report << '\t' << "Failure: " << lastAnalisysStats["failure"] << '\n';
+    report << '\t' << "Harmless: " << lastAnalisysStats["harmless"] << '\n';
+    report << '\t' << "Malicious: " << lastAnalisysStats["malicious"] << '\n';
+    report << '\t' << "Suspicious: " << lastAnalisysStats["suspicious"] << '\n';
+    report << '\t' << "Timeout: " << lastAnalisysStats["timeout"] << '\n';
+    report << '\t' << "Type unsupported: " << lastAnalisysStats["type-unsupported"] << '\n';
+    report << '\t' << "Undetected: " << lastAnalisysStats["undetected"];
+
+    return report.str();
+}
+
 PLUGIN_EXPORT bool Run(const string_view command, Reference<GView::Object> object)
 {
     if (command == "UploadCurrent") {
@@ -209,8 +256,13 @@ PLUGIN_EXPORT bool Run(const string_view command, Reference<GView::Object> objec
 
         auto json = nlohmann::json::parse(response, nullptr, false);
         if (!json.is_discarded()) {
-            AppCUI::OS::Clipboard::SetText(json.dump());
+            std::string fileReport = ExtractFileAnalysisReport(json);
+            AppCUI::OS::Clipboard::SetText(fileReport);
             Dialogs::MessageBox::ShowNotification("Report Retrieved", "File report copied to clipboard.");
+            //Window resultWindow("Results", "d:c,w:70,h20", WindowFlags::Sizeable | WindowFlags::Maximized);
+            GView::GenericPlugins::FileAnalysis::TextWindow window("Analysis results", fileReport);
+            window.Show();
+            //Dialogs::MessageBox::ShowNotification("Results:", fileReport);
         } else {
             Dialogs::MessageBox::ShowNotification("Report Retrieved", "File report fetched successfully from VirusTotal.");
         }
