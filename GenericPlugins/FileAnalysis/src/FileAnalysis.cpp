@@ -14,6 +14,13 @@
 
 namespace GView::GenericPlugins::FileAnalysis
 {
+constexpr std::string_view CMD_UPLOAD_CURRENT = "UploadCurrent";
+constexpr std::string_view CMD_CHECK_BY_HASH = "CheckByHash";
+
+constexpr std::string_view MSG_OBJECT_NOT_VALID = "Current object is not valid.";
+constexpr std::string_view MSG_CURL_COULD_NOT_BE_INITIATED = "CURL could not be initiated.";
+constexpr std::string_view MSG_VIRUSTOTAL_API_KEY_NOT_FOUND = "VIRUSTOTAL_API_KEY not found in evironment.";
+
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* outputBuffer)
 {
     size_t totalSize = size * nmemb;
@@ -23,7 +30,7 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::stri
     return totalSize;
 }
 
-bool getenv(const char* name, std::string& env)
+static bool GetEnv(const char* name, std::string& env)
 {
     const char* ret = std::getenv(name);
     if (ret)
@@ -44,18 +51,21 @@ static std::string FilePathFromGViewObject(Reference<GView::Object> object)
 static bool UploadFile(Reference<GView::Object> object, std::string& response)
 {
     if (!object.IsValid()) {
+        response = MSG_OBJECT_NOT_VALID;
         return false;
     }
 
      CURL* curl = curl_easy_init();
      if (!curl) {
+         response = MSG_CURL_COULD_NOT_BE_INITIATED;
          return false;
      }
 
      std::string filePathStr = FilePathFromGViewObject(object);
 
      std::string apiKey;
-     if (!getenv("VIRUSTOTAL_API_KEY", apiKey)) {
+     if (!GetEnv("VIRUSTOTAL_API_KEY", apiKey)) {
+         response = MSG_VIRUSTOTAL_API_KEY_NOT_FOUND;
          return false;
      }
 
@@ -85,13 +95,15 @@ static bool UploadFile(Reference<GView::Object> object, std::string& response)
 static bool GetFileReport(Reference<GView::Object> object, std::string& response)
 {
     if (!object.IsValid()) {
+        response = MSG_OBJECT_NOT_VALID;
         return false;
     }
 
      CURL* curl = curl_easy_init();
-     if (!curl) {
-         return false;
-     }
+    if (!curl) {
+        response = MSG_CURL_COULD_NOT_BE_INITIATED;
+        return false;
+    }
 
      bool hashComputedSuccessfuly;
      std::string fileHash = ComputeHash(object, hashComputedSuccessfuly);
@@ -102,8 +114,8 @@ static bool GetFileReport(Reference<GView::Object> object, std::string& response
      }
 
      std::string apiKey;
-     if (!getenv("VIRUSTOTAL_API_KEY", apiKey)) {
-         response = "No VIRUSTOTAL_API_KEY - add one to your computers environment variables";
+     if (!GetEnv("VIRUSTOTAL_API_KEY", apiKey)) {
+         response = MSG_VIRUSTOTAL_API_KEY_NOT_FOUND;
          return false;
      }
 
@@ -125,7 +137,7 @@ static bool GetFileReport(Reference<GView::Object> object, std::string& response
      return res == CURLE_OK;
 }
 
-std::string MD5HashToHexString(unsigned char* digest)
+static std::string MD5HashToHexString(unsigned char* digest)
 {
      static const char hexDigits[17] = "0123456789ABCDEF";
      char digest_str[2 * MD5_DIGEST_LENGTH + 1];
@@ -142,7 +154,7 @@ std::string MD5HashToHexString(unsigned char* digest)
 //if hashComputedSuccessfully is false, the returned string will be the error message
 static std::string ComputeHash(Reference<GView::Object> object, bool& hashComputedSuccessfuly, Hashes hashType)
 {
-     hashComputedSuccessfuly  = false;
+    hashComputedSuccessfuly  = false;
     std::string filePathStr = FilePathFromGViewObject(object);
     std::ifstream file(filePathStr, std::ios::in | std::ios::binary | std::ios::ate);
 
@@ -174,21 +186,19 @@ static std::string ComputeHash(Reference<GView::Object> object, bool& hashComput
     // Clean up
     delete[] memBlock;
 
-
     return fileHash;
 }
 } // namespace GView::GenericPlugins::FileAnalysis
-
 
 extern "C"
 {
 PLUGIN_EXPORT bool Run(const string_view command, Reference<GView::Object> object)
 {
-    if (command == "UploadCurrent") {
+    if (command == GView::GenericPlugins::FileAnalysis::CMD_UPLOAD_CURRENT) {
         std::string response;
         if (!GView::GenericPlugins::FileAnalysis::UploadFile(object, response)) {
-            Dialogs::MessageBox::ShowError("Error!", "Failed to upload file to VirusTotal.");
-            return false;
+            Dialogs::MessageBox::ShowError("Error!", response);
+            RETURNERROR(false, response.c_str());
         }
 
         auto json = nlohmann::json::parse(response, nullptr, false);
@@ -200,11 +210,11 @@ PLUGIN_EXPORT bool Run(const string_view command, Reference<GView::Object> objec
         }
 
         return true;
-    } else if (command == "CheckByHash") {
+    } else if (command == GView::GenericPlugins::FileAnalysis::CMD_CHECK_BY_HASH) {
         std::string response;
         if (!GView::GenericPlugins::FileAnalysis::GetFileReport(object, response)) {
-            Dialogs::MessageBox::ShowError("Error!", "Failed to fetch file report from VirusTotal.\n" + response);
-            return false;
+            Dialogs::MessageBox::ShowError("Error!", response);
+            RETURNERROR(false, response.c_str());
         }
 
         auto json = nlohmann::json::parse(response, nullptr, false);
