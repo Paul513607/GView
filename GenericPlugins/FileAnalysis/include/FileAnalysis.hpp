@@ -8,6 +8,11 @@
 #include <nlohmann/json.hpp>
 #include <cstdlib>
 #include <codecvt>
+#include "curl/curl.h"
+#include <openssl/md5.h>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 
 namespace GView::GenericPlugins::FileAnalysis
 {
@@ -29,6 +34,6 @@ enum class Hashes : uint32 {
 // Function declarations
 bool UploadFile(Reference<GView::Object> object, std::string& response);
 bool GetFileReport(Reference<GView::Object> object, std::string& response);
-std::string ComputeHash(Reference<GView::Object> object, Hashes hash_type);
+std::string ComputeHash(Reference<GView::Object> object, bool& hashComputedSuccessfuly, Hashes hashType = Hashes::MD5);
 
 } // namespace GView::GenericPlugins::FileAnalysis

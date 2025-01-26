@@ -2,7 +2,7 @@
 
 #include "FileAnalysis.hpp"
 
-#include "curl/curl.h"
+
 
 #pragma comment(lib, "Normaliz.lib")
 #pragma comment(lib, "Ws2_32.lib")
@@ -31,6 +31,16 @@ bool getenv(const char* name, std::string& env)
     return !!ret;
 }
 
+static std::string FilePathFromGViewObject(Reference<GView::Object> object)
+{
+    const auto filePath = object->GetPath(); // std::u16string_view
+
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
+    std::string filePathStr = converter.to_bytes(filePath.data(), filePath.data() + filePath.size());
+
+    return filePathStr;
+}
+
 static bool UploadFile(Reference<GView::Object> object, std::string& response)
 {
     if (!object.IsValid()) {
@@ -42,10 +52,7 @@ static bool UploadFile(Reference<GView::Object> object, std::string& response)
          return false;
      }
 
-     const auto filePath = object->GetPath(); // std::u16string_view
-
-     std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-     std::string filePathStr = converter.to_bytes(filePath.data(), filePath.data() + filePath.size());
+     std::string filePathStr = FilePathFromGViewObject(object);
 
      std::string apiKey;
      if (!getenv("VIRUSTOTAL_API_KEY", apiKey)) {
@@ -86,9 +93,17 @@ static bool GetFileReport(Reference<GView::Object> object, std::string& response
          return false;
      }
 
-     std::string fileHash = "d50fa9b5d542aa37b75123c0a0ac399a70a6a01988a748742cf6cfb407f19071";
+     bool hashComputedSuccessfuly;
+     std::string fileHash = ComputeHash(object, hashComputedSuccessfuly);
+     //if hash did not compute successfully, the fileHash is the error message to be returned
+     if (!hashComputedSuccessfuly) {
+         response = fileHash;
+         return false;
+     }
+
      std::string apiKey;
      if (!getenv("VIRUSTOTAL_API_KEY", apiKey)) {
+         response = "No VIRUSTOTAL_API_KEY - add one to your computers environment variables";
          return false;
      }
 
@@ -110,9 +125,57 @@ static bool GetFileReport(Reference<GView::Object> object, std::string& response
      return res == CURLE_OK;
 }
 
-static std::string ComputeHash(Reference<GView::Object> object, Hashes hashType)
+std::string MD5HashToHexString(unsigned char* digest)
 {
-    return "";
+     static const char hexDigits[17] = "0123456789ABCDEF";
+     char digest_str[2 * MD5_DIGEST_LENGTH + 1];
+     // Convert the hash into a hex string form
+     for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
+         digest_str[i * 2]     = hexDigits[(digest[i] >> 4) & 0xF];
+         digest_str[i * 2 + 1] = hexDigits[digest[i] & 0xF];
+     }
+     digest_str[MD5_DIGEST_LENGTH * 2] = '\0';
+
+     return digest_str;
+}
+
+//if hashComputedSuccessfully is false, the returned string will be the error message
+static std::string ComputeHash(Reference<GView::Object> object, bool& hashComputedSuccessfuly, Hashes hashType)
+{
+     hashComputedSuccessfuly  = false;
+    std::string filePathStr = FilePathFromGViewObject(object);
+    std::ifstream file(filePathStr, std::ios::in | std::ios::binary | std::ios::ate);
+
+    if (!file.is_open()) {
+         return "Error: Cannot open file: " + filePathStr;
+    }
+
+    // Get file size
+    long fileSize = file.tellg();
+
+    // Allocate memory to hold the entire file
+    char* memBlock = new char[fileSize];
+
+    // Read the file into memory
+    file.seekg(0, std::ios::beg);
+    file.read(memBlock, fileSize);
+    file.close();
+
+    std::string fileHash;
+    switch (hashType) {
+    case Hashes::MD5:
+    default:
+         // Compute the MD5 hash of the file content
+         unsigned char result[MD5_DIGEST_LENGTH];
+         MD5((unsigned char*) memBlock, fileSize, result);
+         fileHash                = MD5HashToHexString(result);
+         hashComputedSuccessfuly = true;
+    }
+    // Clean up
+    delete[] memBlock;
+
+
+    return fileHash;
 }
 } // namespace GView::GenericPlugins::FileAnalysis
 
@@ -140,7 +203,7 @@ PLUGIN_EXPORT bool Run(const string_view command, Reference<GView::Object> objec
     } else if (command == "CheckByHash") {
         std::string response;
         if (!GView::GenericPlugins::FileAnalysis::GetFileReport(object, response)) {
-            Dialogs::MessageBox::ShowError("Error!", "Failed to fetch file report from VirusTotal.");
+            Dialogs::MessageBox::ShowError("Error!", "Failed to fetch file report from VirusTotal.\n" + response);
             return false;
         }
 
