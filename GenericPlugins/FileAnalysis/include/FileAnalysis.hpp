@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <ctime>
 
 namespace GView::GenericPlugins::FileAnalysis
 {

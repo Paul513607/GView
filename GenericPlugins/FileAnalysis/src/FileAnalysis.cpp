@@ -2,8 +2,6 @@
 
 #include "FileAnalysis.hpp"
 
-
-
 #pragma comment(lib, "Normaliz.lib")
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Wldap32.lib")
@@ -208,6 +206,13 @@ static std::string ComputeHash(Reference<GView::Object> object, bool& hashComput
 
 extern "C"
 {
+static std::string GetISO8601DateFromTimestamp(time_t timestamp)
+{
+    char buf[sizeof "2011-10-08T07:07:09Z"];
+    strftime(buf, sizeof buf, "%FT%TZ", gmtime(&timestamp));
+    return std::string(buf);
+}
+
 static std::string ExtractFileAnalysisReport(nlohmann::json fileAnalysisResults)
 {
     std::stringstream report;
@@ -218,8 +223,10 @@ static std::string ExtractFileAnalysisReport(nlohmann::json fileAnalysisResults)
     report << "MD5: " << attributes["md5"] << '\n';
     report << "SHA1: " << attributes["sha1"] << '\n';
     report << "SHA256: " << attributes["sha256"] << '\n';
-    report << "Last submission date: " << attributes["last_submission_date"] << '\n';
-    report << "Last analysis date: " << attributes["last_analysis_date"] << '\n';
+    const std::string last_submission_date = GetISO8601DateFromTimestamp(attributes["last_submission_date"]);
+    const std::string last_analysis_date   = GetISO8601DateFromTimestamp(attributes["last_analysis_date"]);
+    report << "Last submission date: " << last_submission_date << '\n';
+    report << "Last analysis date: " << last_analysis_date << '\n';
     report << "Times submitted: " << attributes["times_submitted"] << '\n';
     report << "Unique sources: " << attributes["unique_sources"] << '\n';
     report << "Self link: " << fileAnalysisResults["data"]["links"]["self"] << '\n' << '\n';
