@@ -216,6 +216,17 @@ static std::string GetISO8601DateFromTimestamp(time_t timestamp)
 static std::string ExtractFileAnalysisReport(nlohmann::json fileAnalysisResults)
 {
     std::stringstream report;
+    std::string inspect       = fileAnalysisResults.dump();
+
+    if (fileAnalysisResults.contains("error") && fileAnalysisResults["error"]["code"] == "NotFoundError") {
+         return "File has not been submitted for analysis";
+    }
+
+    if (!fileAnalysisResults["data"]["attributes"].contains("last_analysis_date")) {
+        
+        return "File analysis has not been completed.";
+    }
+
     nlohmann::json attributes = fileAnalysisResults["data"]["attributes"];
     report << "File name: " << attributes["meaningful_name"] << '\n';
     report << "Size in bytes: " << attributes["size"] << '\n';
